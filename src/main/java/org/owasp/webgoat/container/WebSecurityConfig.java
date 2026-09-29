@@ -53,6 +53,7 @@ public class WebSecurityConfig {
                     .hasAuthority("WEBGOAT_ADMIN")
                     .anyRequest()
                     .authenticated())
+        .requiresChannel(channel -> channel.anyRequest().requiresSecure())
         .formLogin(
             login ->
                 login
