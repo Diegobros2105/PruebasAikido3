@@ -62,9 +62,29 @@ public class VulnerableTaskHolder implements Serializable {
     // condition is here to prevent you from destroying the goat altogether
     if ((taskAction.startsWith("sleep") || taskAction.startsWith("ping"))
         && taskAction.length() < 22) {
+      
+      // Validate command arguments to prevent resource exhaustion attacks
+      if (!isValidTaskAction(taskAction)) {
+        log.warn("Invalid task action rejected: {}", taskAction);
+        throw new IllegalArgumentException("Invalid task action parameters");
+      }
+      
       log.info("about to execute: {}", taskAction);
+      Process p = null;
       try {
-        Process p = Runtime.getRuntime().exec(taskAction);
+        p = Runtime.getRuntime().exec(taskAction);
+        final Process process = p;
+        
+        // Set a timeout to prevent indefinite blocking
+        boolean completed = p.waitFor(10, java.util.concurrent.TimeUnit.SECONDS);
+        
+        if (!completed) {
+          log.warn("Process exceeded timeout, terminating: {}", taskAction);
+          p.destroyForcibly();
+          throw new IllegalArgumentException("Task execution timeout exceeded");
+        }
+        
+        // Read output only if process completed within timeout
         BufferedReader in = new BufferedReader(new InputStreamReader(p.getInputStream()));
         String line = null;
         while ((line = in.readLine()) != null) {
@@ -72,7 +92,70 @@ public class VulnerableTaskHolder implements Serializable {
         }
       } catch (IOException e) {
         log.error("IO Exception", e);
+        if (p != null && p.isAlive()) {
+          p.destroyForcibly();
+        }
+      } catch (InterruptedException e) {
+        log.error("Process interrupted", e);
+        if (p != null && p.isAlive()) {
+          p.destroyForcibly();
+        }
+        Thread.currentThread().interrupt();
+        throw new IllegalArgumentException("Task execution interrupted");
+      } finally {
+        // Ensure process is cleaned up
+        if (p != null && p.isAlive()) {
+          p.destroyForcibly();
+        }
       }
     }
+  }
+  
+  /**
+   * Validates that the task action has reasonable parameters to prevent resource exhaustion.
+   * For sleep commands, ensures duration is between 1 and 10 seconds.
+   * For ping commands, ensures count is between 1 and 10.
+   */
+  private boolean isValidTaskAction(String action) {
+    if (action == null || action.isEmpty()) {
+      return false;
+    }
+    
+    String[] parts = action.trim().split("\\s+");
+    if (parts.length < 2) {
+      return false;
+    }
+    
+    String command = parts[0].toLowerCase();
+    
+    if ("sleep".equals(command)) {
+      // Validate sleep duration (should be 1-10 seconds)
+      try {
+        int duration = Integer.parseInt(parts[1]);
+        return duration >= 1 && duration <= 10;
+      } catch (NumberFormatException e) {
+        return false;
+      }
+    } else if ("ping".equals(command)) {
+      // For ping, validate the count parameter
+      // Windows: ping localhost -n <count>
+      // Unix/Linux: ping -c <count> localhost or ping localhost (defaults to continuous, not allowed)
+      
+      // Check for count parameter in various positions
+      for (int i = 1; i < parts.length; i++) {
+        if (("-n".equals(parts[i]) || "-c".equals(parts[i])) && i + 1 < parts.length) {
+          try {
+            int count = Integer.parseInt(parts[i + 1]);
+            return count >= 1 && count <= 10;
+          } catch (NumberFormatException e) {
+            return false;
+          }
+        }
+      }
+      // If no count parameter found, reject (would ping indefinitely)
+      return false;
+    }
+    
+    return false;
   }
 }
