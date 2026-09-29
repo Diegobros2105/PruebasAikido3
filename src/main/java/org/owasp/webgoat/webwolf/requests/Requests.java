@@ -11,7 +11,6 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.boot.actuate.web.exchanges.HttpExchange;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
@@ -43,30 +42,14 @@ public class Requests {
   public ModelAndView get(Authentication authentication) {
     var model = new ModelAndView("requests");
     String username = (null != authentication) ? authentication.getName() : "anonymous";
+    // Only retrieve traces that belong to the authenticated user
     var traces =
-        traceRepository.findAll().stream()
-            .filter(t -> allowedTrace(t, username))
+        traceRepository.findAllForUser(username).stream()
             .map(t -> new Tracert(t.getTimestamp(), path(t), toJsonString(t)))
             .toList();
     model.addObject("traces", traces);
 
     return model;
-  }
-
-  private boolean allowedTrace(HttpExchange t, String username) {
-    HttpExchange.Request req = t.getRequest();
-    boolean allowed = true;
-    /* do not show certain traces to other users in a classroom setup */
-    if (req.getUri().getPath().contains("/files") && !req.getUri().getPath().contains(username)) {
-      allowed = false;
-    } else if (req.getUri().getPath().contains("/landing")
-        && req.getUri().getQuery() != null
-        && req.getUri().getQuery().contains("uniqueCode")
-        && !req.getUri().getQuery().contains(StringUtils.reverse(username))) {
-      allowed = false;
-    }
-
-    return allowed;
   }
 
   private String path(HttpExchange t) {
