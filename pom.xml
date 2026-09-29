@@ -101,7 +101,7 @@
     <webdriver.version>6.3.4</webdriver.version>
     <webgoat.context>/WebGoat</webgoat.context>
     <webgoat.port>8080</webgoat.port>
-    <webgoat.sslenabled>false</webgoat.sslenabled>
+    <webgoat.sslenabled>true</webgoat.sslenabled>
     <!-- Spring Boot 4 resolves version-less webjars URLs via webjars-locator-lite -->
     <webjars-locator-lite.version>1.1.4</webjars-locator-lite.version>
     <webwolf.context>/WebWolf</webwolf.context>

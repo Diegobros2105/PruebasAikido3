@@ -44,6 +44,7 @@ public class WebSecurityConfig {
               auth.requestMatchers(HttpMethod.POST, "/files", "/requests").permitAll();
               auth.anyRequest().authenticated();
             })
+        .requiresChannel(channel -> channel.anyRequest().requiresSecure())
         .csrf(csrf -> csrf.disable())
         .formLogin(
             login ->
