@@ -57,7 +57,18 @@ public class MailboxController {
 
   @PostMapping("/mail")
   @ResponseStatus(HttpStatus.CREATED)
-  public void sendEmail(@RequestBody Email email) {
+  public void sendEmail(@RequestBody EmailRequest emailRequest) {
+    // Create a new Email entity from the request DTO. The id field is never set from the request,
+    // ensuring that this operation always creates a new email rather than updating an existing one.
+    // This prevents mass assignment attacks where an attacker could overwrite arbitrary emails by
+    // supplying an existing id value.
+    Email email =
+        Email.builder()
+            .contents(emailRequest.getContents())
+            .sender(emailRequest.getSender())
+            .title(emailRequest.getTitle())
+            .recipient(emailRequest.getRecipient())
+            .build();
     // time is @JsonIgnore (server-controlled). Stamp the receipt time here: Spring Boot 4 / Jackson
     // 3 deserializes via the all-args constructor, which bypasses the field's default initializer.
     email.setTime(LocalDateTime.now());
