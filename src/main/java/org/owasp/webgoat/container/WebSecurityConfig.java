@@ -53,6 +53,14 @@ public class WebSecurityConfig {
                     .hasAuthority("WEBGOAT_ADMIN")
                     .anyRequest()
                     .authenticated())
+        .requiresChannel(
+            channel ->
+                channel
+                    // Password reset returns a usable credential; require HTTPS to prevent
+                    // passive network observation. Applies to both the POST that triggers
+                    // the reset and any GET that might return sensitive data.
+                    .requestMatchers("/service/admin/users/*/reset-password")
+                    .requiresSecure())
         .formLogin(
             login ->
                 login
