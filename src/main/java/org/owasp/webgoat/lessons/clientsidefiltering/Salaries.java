@@ -23,6 +23,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.util.FileCopyUtils;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.w3c.dom.Node;
@@ -54,7 +55,7 @@ public class Salaries {
 
   @GetMapping("clientSideFiltering/salaries")
   @ResponseBody
-  public List<Map<String, Object>> invoke() {
+  public List<Map<String, Object>> invoke(@RequestParam String userId) {
     NodeList nodes = null;
     File d = new File(webGoatHomeDirectory, "ClientSideFiltering/employees.xml");
     XPathFactory factory = XPathFactory.newInstance();
@@ -68,11 +69,11 @@ public class Salaries {
 
       StringBuilder sb = new StringBuilder();
 
-      sb.append("/Employees/Employee/UserID | ");
-      sb.append("/Employees/Employee/FirstName | ");
-      sb.append("/Employees/Employee/LastName | ");
-      sb.append("/Employees/Employee/SSN | ");
-      sb.append("/Employees/Employee/Salary ");
+      sb.append("/Employees/Employee[Managers/Manager/text() = " + userId + "]/UserID | ");
+      sb.append("/Employees/Employee[Managers/Manager/text() = " + userId + "]/FirstName | ");
+      sb.append("/Employees/Employee[Managers/Manager/text() = " + userId + "]/LastName | ");
+      sb.append("/Employees/Employee[Managers/Manager/text() = " + userId + "]/SSN | ");
+      sb.append("/Employees/Employee[Managers/Manager/text() = " + userId + "]/Salary ");
 
       String expression = sb.toString();
       nodes = (NodeList) path.evaluate(expression, inputSource, XPathConstants.NODESET);
