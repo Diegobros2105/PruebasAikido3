@@ -12,4 +12,6 @@ public interface MailboxRepository extends JpaRepository<Email, String> {
   List<Email> findByRecipientOrderByTimeDesc(String recipient);
 
   int countByRecipientAndReadFalse(String recipient);
+
+  void deleteByRecipient(String recipient);
 }
