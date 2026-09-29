@@ -4,6 +4,7 @@
  */
 package org.owasp.webgoat.container.mailbox;
 
+import jakarta.servlet.http.HttpServletRequest;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.ModelAndView;
 
 /**
@@ -57,11 +59,40 @@ public class MailboxController {
 
   @PostMapping("/mail")
   @ResponseStatus(HttpStatus.CREATED)
-  public void sendEmail(@RequestBody Email email) {
+  public void sendEmail(@RequestBody Email email, HttpServletRequest request) {
+    // Restrict mail delivery to localhost only. Lessons deliver mail by POSTing to the mailbox
+    // over HTTP (RestTemplate) from within the same JVM, which carries no session. External
+    // callers must not be able to write arbitrary messages into users' mailboxes.
+    String remoteAddr = request.getRemoteAddr();
+    if (!isLocalhost(remoteAddr)) {
+      throw new ResponseStatusException(
+          HttpStatus.FORBIDDEN, "Mail delivery is restricted to localhost");
+    }
+
+    // Validate email fields to prevent injection attacks
+    if (email.getRecipient() == null || email.getRecipient().trim().isEmpty()) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Recipient is required");
+    }
+    if (email.getContents() == null) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Contents is required");
+    }
+
     // time is @JsonIgnore (server-controlled). Stamp the receipt time here: Spring Boot 4 / Jackson
     // 3 deserializes via the all-args constructor, which bypasses the field's default initializer.
     email.setTime(LocalDateTime.now());
     mailboxRepository.save(email);
+  }
+
+  /**
+   * Checks if the given IP address is localhost (IPv4 or IPv6).
+   *
+   * @param remoteAddr the remote IP address
+   * @return true if the address is localhost, false otherwise
+   */
+  private boolean isLocalhost(String remoteAddr) {
+    return "127.0.0.1".equals(remoteAddr)
+        || "0:0:0:0:0:0:0:1".equals(remoteAddr)
+        || "::1".equals(remoteAddr);
   }
 
   @DeleteMapping("/mail")
